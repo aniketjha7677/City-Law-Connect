@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { Send, Paperclip, AlertCircle } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import { chatWithAI } from "@/lib/openai"
 import toast from 'react-hot-toast'
 
 interface Message {
@@ -55,16 +56,25 @@ export default function ChatPage() {
     setLoading(true)
 
     // Simulate AI response - in real app, this would call OpenAI API
-    setTimeout(() => {
-      const assistantMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: `I understand you're asking about "${input}". Based on your question, I can provide some general guidance. However, please note that I'm an AI assistant and cannot provide specific legal advice. For your situation, I recommend consulting with a qualified lawyer who specializes in this area. Would you like me to help you find a lawyer in your area?`,
-        timestamp: new Date(),
-      }
-      setMessages((prev) => [...prev, assistantMessage])
-      setLoading(false)
-    }, 1500)
+     try {
+    const response = await chatWithAI([
+      { role: "user", content: userMessage.content }
+    ])
+
+    const assistantMessage: Message = {
+      id: (Date.now() + 1).toString(),
+      role: 'assistant',
+      content: response,
+      timestamp: new Date(),
+    }
+
+    setMessages((prev) => [...prev, assistantMessage])
+  } catch (error) {
+    toast.error("Failed to get AI response")
+  } finally {
+    setLoading(false)
+  }
+
   }
 
   const handleQuickTopic = (topic: string) => {
