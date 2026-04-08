@@ -15,12 +15,12 @@ export default function RegisterPage() {
     userType: 'individual',
   })
   const [loading, setLoading] = useState(false)
-  const { signUp } = useAuth()
+  const { signUp, signOut } = useAuth()
   const navigate = useNavigate()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (formData.password !== formData.confirmPassword) {
       toast.error('Passwords do not match')
       return
@@ -34,8 +34,14 @@ export default function RegisterPage() {
     setLoading(true)
     try {
       await signUp(formData.email, formData.password, formData.name, formData.location)
-      toast.success('Account created successfully! Please check your email to verify.')
-      navigate('/dashboard')
+
+      // 🔥 FORCE LOGOUT (important)
+      await signOut()
+
+      toast.success('Account created successfully! Please login')
+
+      // redirect to login page
+      navigate('/auth/login')
     } catch (error: any) {
       toast.error(error.message || 'Failed to create account')
     } finally {
@@ -66,7 +72,7 @@ export default function RegisterPage() {
               Join thousands getting legal help
             </p>
           </div>
-          
+
           <form className="space-y-5" onSubmit={handleSubmit}>
             {/* Full Name */}
             <div>
@@ -89,7 +95,7 @@ export default function RegisterPage() {
                 />
               </div>
             </div>
-            
+
             {/* Email Address */}
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
@@ -111,7 +117,7 @@ export default function RegisterPage() {
                 />
               </div>
             </div>
-            
+
             {/* Location */}
             <div>
               <label htmlFor="location" className="block text-sm font-medium text-gray-700 mb-2">
@@ -133,7 +139,7 @@ export default function RegisterPage() {
                 />
               </div>
             </div>
-            
+
             {/* User Type */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -143,28 +149,26 @@ export default function RegisterPage() {
                 <button
                   type="button"
                   onClick={() => setFormData({ ...formData, userType: 'individual' })}
-                  className={`py-3 px-4 rounded-lg border-2 font-medium transition-colors ${
-                    formData.userType === 'individual'
-                      ? 'border-accent bg-accent/10 text-accent'
-                      : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'
-                  }`}
+                  className={`py-3 px-4 rounded-lg border-2 font-medium transition-colors ${formData.userType === 'individual'
+                    ? 'border-accent bg-accent/10 text-accent'
+                    : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'
+                    }`}
                 >
                   Individual
                 </button>
                 <button
                   type="button"
                   onClick={() => setFormData({ ...formData, userType: 'business' })}
-                  className={`py-3 px-4 rounded-lg border-2 font-medium transition-colors ${
-                    formData.userType === 'business'
-                      ? 'border-accent bg-accent/10 text-accent'
-                      : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'
-                  }`}
+                  className={`py-3 px-4 rounded-lg border-2 font-medium transition-colors ${formData.userType === 'business'
+                    ? 'border-accent bg-accent/10 text-accent'
+                    : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'
+                    }`}
                 >
                   Business
                 </button>
               </div>
             </div>
-            
+
             {/* Password */}
             <div>
               <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
@@ -180,7 +184,7 @@ export default function RegisterPage() {
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
               />
             </div>
-            
+
             {/* Confirm Password */}
             <div>
               <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-2">

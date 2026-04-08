@@ -83,9 +83,9 @@ export default function ChatPage() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="flex flex-col h-[calc(100vh-200px)]">
-        <div className="mb-4">
-          <h1 className="text-3xl font-bold text-primary mb-2">AI Legal Assistant</h1>
+      <div className="flex flex-col h-[calc(100vh-120px)]">
+        <div className="mb-2">
+          <h1 className="text-2xl font-bold text-primary mb-1">AI Legal Assistant</h1>
           <p className="text-secondary">
             Get instant legal guidance powered by GPT-4o
           </p>
@@ -147,7 +147,7 @@ export default function ChatPage() {
         </div>
 
         {/* Emergency Escalation */}
-        <div className="mb-4">
+        <div className="mb-2">
           <Link
             to="/emergency"
             className="flex items-center space-x-2 text-red-600 hover:text-red-700 text-sm"
@@ -182,4 +182,5 @@ export default function ChatPage() {
     </div>
   )
 }
+
 

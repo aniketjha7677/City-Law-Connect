@@ -1,9 +1,54 @@
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
-import { MessageSquare, Users, FileText, AlertCircle, TrendingUp, Clock } from 'lucide-react'
+import { MessageSquare, Users, FileText, AlertCircle, TrendingUp } from 'lucide-react'
+
+type NewsItem = {
+  id: number
+  title: string
+  date: string
+  category: string
+  url: string
+}
 
 export default function Dashboard() {
   const { user } = useAuth()
+
+  const API_KEY = import.meta.env.VITE_NEWS_API_KEY
+
+  useEffect(() => {
+    const fetchNews = async () => {
+      try {
+        const res = await fetch(
+          `https://newsapi.org/v2/everything?q=legal OR law OR court OR "Supreme Court India"&language=en&sortBy=publishedAt&apiKey=${API_KEY}`
+        )
+
+        if (!res.ok) {
+          throw new Error('Failed to fetch news')
+        }
+
+        const data = await res.json()
+
+        const formatted: NewsItem[] = (data.articles || [])
+          .slice(0, 6)
+          .map((item: any, index: number) => ({
+            id: index,
+            title: item.title || 'No Title',
+            date: item.publishedAt
+              ? item.publishedAt.split('T')[0]
+              : 'N/A',
+            category: item.source?.name || 'General',
+            url: item.url || '#'
+          }))
+
+        setLegalNews(formatted)
+      } catch (error) {
+        console.error('Error fetching news:', error)
+      }
+    }
+
+    fetchNews()
+  }, [API_KEY])
 
   // Mock data - in real app, this would come from Supabase
   const recentChats = [
@@ -17,10 +62,7 @@ export default function Dashboard() {
     { id: 3, name: 'Emily Rodriguez', specialization: 'Employment Law', rating: 4.9, location: 'New York, NY' },
   ]
 
-  const legalNews = [
-    { id: 1, title: 'New Employment Law Changes in 2024', date: '2024-01-10', category: 'Employment' },
-    { id: 2, title: 'Updates to Tenant Rights Legislation', date: '2024-01-08', category: 'Housing' },
-  ]
+  const [legalNews, setLegalNews] = useState<NewsItem[]>([])
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -41,19 +83,19 @@ export default function Dashboard() {
           <h3 className="font-bold mb-1">New Consultation</h3>
           <p className="text-sm text-secondary">Chat with AI assistant</p>
         </Link>
-        
+
         <Link to="/lawyers" className="card hover:shadow-lg transition-shadow">
           <Users className="w-8 h-8 text-accent mb-2" />
           <h3 className="font-bold mb-1">Find Lawyer</h3>
           <p className="text-sm text-secondary">Search legal professionals</p>
         </Link>
-        
+
         <Link to="/emergency" className="card hover:shadow-lg transition-shadow">
           <AlertCircle className="w-8 h-8 text-red-600 mb-2" />
           <h3 className="font-bold mb-1">Emergency Help</h3>
           <p className="text-sm text-secondary">Urgent legal assistance</p>
         </Link>
-        
+
         <Link to="/cases" className="card hover:shadow-lg transition-shadow">
           <FileText className="w-8 h-8 text-accent mb-2" />
           <h3 className="font-bold mb-1">My Cases</h3>
@@ -139,17 +181,21 @@ export default function Dashboard() {
             </Link>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {legalNews.map((news) => (
-              <div
-                key={news.id}
-                className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
-              >
-                <div className="flex items-center space-x-2 mb-2">
-                  <TrendingUp className="w-4 h-4 text-accent" />
-                  <span className="text-xs text-secondary">{news.category}</span>
-                </div>
-                <h3 className="font-bold mb-1">{news.title}</h3>
-                <p className="text-sm text-secondary">{news.date}</p>
+            {legalNews.map((news: NewsItem) => (
+              <div key={news.id}>
+                <a
+                  href={news.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  <div className="flex items-center space-x-2 mb-2">
+                    <TrendingUp className="w-4 h-4 text-accent" />
+                    <span className="text-xs text-secondary">{news.category}</span>
+                  </div>
+                  <h3 className="font-bold mb-1">{news.title}</h3>
+                  <p className="text-sm text-secondary">{news.date}</p>
+                </a>
               </div>
             ))}
           </div>
@@ -158,4 +204,5 @@ export default function Dashboard() {
     </div>
   )
 }
+
 

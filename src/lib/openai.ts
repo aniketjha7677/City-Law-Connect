@@ -8,15 +8,30 @@ export interface ChatMessage {
 const isLegal = (text: string): boolean => {
   const lower = text.toLowerCase().trim();
 
-  // allow basic legal questions even if simple
-  if (lower.includes("law")) return true;
+  // ✅ allow greetings
+  if (["hi", "hello", "hey"].includes(lower)) return true;
 
+  // ✅ detect patterns like:
+  // article 370, section 420, ipc 302
+  const legalPatterns = [
+    /article\s*\d+/i,
+    /section\s*\d+/i,
+    /ipc\s*\d+/i,
+    /crpc\s*\d+/i,
+    /\d+\s*ipc/i,
+  ];
+
+  if (legalPatterns.some(pattern => pattern.test(lower))) {
+    return true;
+  }
+
+  // ✅ keywords
   const legalKeywords = [
-    "court", "police", "rights", "contract", "case",
-    "crime", "judge", "tenant", "property",
+    "law", "court", "police", "rights", "contract",
+    "case", "crime", "judge", "tenant", "property",
     "divorce", "arrest", "agreement", "complaint",
-    "fir", "cybercrime", "ipc", "section", "act",
-    "constitution"
+    "fir", "cybercrime", "ipc", "section",
+    "act", "constitution", "article"
   ];
 
   return legalKeywords.some(word => lower.includes(word));
@@ -29,14 +44,14 @@ export async function chatWithAI(messages: ChatMessage[]): Promise<string> {
   const lastMessage = messages[messages.length - 1]?.content || ""
   // 🚫 Block non-legal questions
   const lower = lastMessage.toLowerCase().trim()
-// 👋 allow greetings
-if (["hi", "hello", "hey"].includes(lower)) {
-  return "Hello! I can help you with legal questions. What would you like to know?"
-}
-// 🚫 block non-legal
-if (!isLegal(lastMessage)) {
-  return "I can only assist with legal-related questions."
-}
+  // 👋 allow greetings
+  if (["hi", "hello", "hey"].includes(lower)) {
+    return "Hello! I can help you with legal questions. What would you like to know?"
+  }
+  // 🚫 block non-legal
+  if (!isLegal(lastMessage)) {
+    return "Please ask a legal question"
+  }
   try {
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
@@ -47,24 +62,21 @@ if (!isLegal(lastMessage)) {
         "X-Title": "CityLawConnect"
       },
       body: JSON.stringify({
-        model: "openai/gpt-3.5-turbo", // stable model
+        model: "openai/gpt-4o-mini", // better model
         temperature: 0,
+        max_tokens: 500, // 🔥 IMPORTANT FIX
         messages: [
           {
             role: "system",
             content: `
-You are a STRICT legal assistant.
-RULES:
-- ONLY answer legal-related questions
-- If NOT legal → reply EXACTLY:
-  "I can only assist with legal-related questions."
-- Keep answers simple and clear
-- Suggest consulting a lawyer if needed
-            `
+You are an Indian legal assistant.
+Answer clearly and simply.
+If unsure, suggest consulting a lawyer.
+      `
           },
           ...messages,
         ],
-      }),
+      })
     })
 
     // 🔥 Handle API errors
