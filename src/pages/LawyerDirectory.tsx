@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Search, MapPin, Star, Filter } from 'lucide-react'
+import { Search, MapPin, Star } from 'lucide-react'
+import { getRankedLawyers } from '../lib/localData'
 
 interface Lawyer {
-  id: number
+  id: string
   name: string
   specialization: string[]
   rating: number
@@ -12,6 +13,8 @@ interface Lawyer {
   price: string
   availability: string
   image?: string
+  rankingScore: number
+  successRate: number
 }
 
 export default function LawyerDirectory() {
@@ -19,69 +22,18 @@ export default function LawyerDirectory() {
   const [selectedSpecialization, setSelectedSpecialization] = useState('all')
   const [sortBy, setSortBy] = useState('rating')
 
-  // Mock data - in real app, this would come from Supabase
-  const lawyers: Lawyer[] = [
-    {
-      id: 1,
-      name: 'Sarah Johnson',
-      specialization: ['Family Law', 'Divorce'],
-      rating: 4.9,
-      reviews: 127,
-      location: 'New York, NY',
-      price: '$250/hr',
-      availability: 'Available this week',
-    },
-    {
-      id: 2,
-      name: 'Michael Chen',
-      specialization: ['Criminal Law', 'DUI Defense'],
-      rating: 4.8,
-      reviews: 89,
-      location: 'New York, NY',
-      price: '$300/hr',
-      availability: 'Available today',
-    },
-    {
-      id: 3,
-      name: 'Emily Rodriguez',
-      specialization: ['Employment Law', 'Workplace Discrimination'],
-      rating: 4.9,
-      reviews: 156,
-      location: 'Brooklyn, NY',
-      price: '$275/hr',
-      availability: 'Available this week',
-    },
-    {
-      id: 4,
-      name: 'David Thompson',
-      specialization: ['Real Estate', 'Property Law'],
-      rating: 4.7,
-      reviews: 94,
-      location: 'Queens, NY',
-      price: '$225/hr',
-      availability: 'Available tomorrow',
-    },
-    {
-      id: 5,
-      name: 'Lisa Anderson',
-      specialization: ['Personal Injury', 'Medical Malpractice'],
-      rating: 4.8,
-      reviews: 203,
-      location: 'Manhattan, NY',
-      price: '$350/hr',
-      availability: 'Available this week',
-    },
-    {
-      id: 6,
-      name: 'Robert Martinez',
-      specialization: ['Business Law', 'Contracts'],
-      rating: 4.6,
-      reviews: 67,
-      location: 'New York, NY',
-      price: '$400/hr',
-      availability: 'Available today',
-    },
-  ]
+  const lawyers: Lawyer[] = getRankedLawyers().map((l) => ({
+    id: l.id,
+    name: l.name,
+    specialization: l.specialization,
+    rating: l.avgRating,
+    reviews: l.reviewsCount,
+    location: l.location,
+    price: `$${l.consultationFeePerHour}/hr`,
+    availability: 'Available this week',
+    rankingScore: l.rankingScore,
+    successRate: l.successRate,
+  }))
 
   const specializations = [
     'all',
@@ -105,6 +57,10 @@ export default function LawyerDirectory() {
       switch (sortBy) {
         case 'rating':
           return b.rating - a.rating
+        case 'rank':
+          return b.rankingScore - a.rankingScore
+        case 'success':
+          return b.successRate - a.successRate
         case 'reviews':
           return b.reviews - a.reviews
         case 'price-low':
@@ -156,6 +112,8 @@ export default function LawyerDirectory() {
             onChange={(e) => setSortBy(e.target.value)}
             className="input-field"
           >
+            <option value="rank">Sort by Rank (Reviews + Success)</option>
+            <option value="success">Sort by Success Rate</option>
             <option value="rating">Sort by Rating</option>
             <option value="reviews">Sort by Reviews</option>
             <option value="price-low">Price: Low to High</option>
@@ -189,6 +147,10 @@ export default function LawyerDirectory() {
                   <Star className="w-4 h-4 text-accent fill-current" />
                   <span className="font-bold">{lawyer.rating}</span>
                   <span className="text-sm text-secondary">({lawyer.reviews} reviews)</span>
+                </div>
+                <div className="text-xs text-secondary">
+                  Rank score: <span className="font-bold text-primary">{lawyer.rankingScore}</span> • Success:{' '}
+                  <span className="font-bold text-primary">{lawyer.successRate}%</span>
                 </div>
               </div>
             </div>

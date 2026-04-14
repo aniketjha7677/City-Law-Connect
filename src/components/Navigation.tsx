@@ -4,7 +4,7 @@ import { Menu, X, User, LogOut } from 'lucide-react'
 import { useState } from 'react'
 
 export default function Navigation() {
-  const { user, signOut } = useAuth()
+  const { user, signOut, role } = useAuth()
   const navigate = useNavigate()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
@@ -32,9 +32,15 @@ export default function Navigation() {
           {/* Desktop Navigation */}
           {user && (
             <div className="hidden md:flex items-center space-x-6">
-              <Link to="/dashboard" className="text-secondary hover:text-primary transition-colors">
-                Dashboard
-              </Link>
+              {role === 'lawyer' ? (
+                <Link to="/lawyer/dashboard" className="text-secondary hover:text-primary transition-colors">
+                  Lawyer Dashboard
+                </Link>
+              ) : (
+                <Link to="/dashboard" className="text-secondary hover:text-primary transition-colors">
+                  Dashboard
+                </Link>
+              )}
               <Link to="/lawyers" className="text-secondary hover:text-primary transition-colors">
                 Find Lawyers
               </Link>
@@ -47,6 +53,11 @@ export default function Navigation() {
               <Link to="/cases" className="text-secondary hover:text-primary transition-colors">
                 My Cases
               </Link>
+              {role === 'admin' && (
+                <Link to="/admin" className="text-secondary hover:text-primary transition-colors">
+                  Admin
+                </Link>
+              )}
             </div>
           )}
 
@@ -80,6 +91,12 @@ export default function Navigation() {
                 >
                   Get Started
                 </Link>
+                <Link
+                  to="/lawyer/login"
+                  className="text-secondary hover:text-primary transition-colors"
+                >
+                  Lawyer Login
+                </Link>
               </>
             )}
           </div>
@@ -99,11 +116,11 @@ export default function Navigation() {
         <div className="md:hidden bg-white border-t">
           <div className="px-4 pt-2 pb-4 space-y-2">
             <Link
-              to="/dashboard"
+              to={role === 'lawyer' ? '/lawyer/dashboard' : '/dashboard'}
               className="block py-2 text-secondary hover:text-primary transition-colors"
               onClick={() => setMobileMenuOpen(false)}
             >
-              Dashboard
+              {role === 'lawyer' ? 'Lawyer Dashboard' : 'Dashboard'}
             </Link>
             <Link
               to="/lawyers"
@@ -140,6 +157,15 @@ export default function Navigation() {
             >
               Profile
             </Link>
+            {role === 'admin' && (
+              <Link
+                to="/admin"
+                className="block py-2 text-secondary hover:text-primary transition-colors"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                Admin
+              </Link>
+            )}
             <button
               onClick={() => {
                 handleSignOut()

@@ -1,37 +1,37 @@
 import { useParams, Link } from 'react-router-dom'
-import { FileText, Calendar, MessageSquare, DollarSign, Upload, Download } from 'lucide-react'
+import { FileText, Calendar, MessageSquare, DollarSign, Upload } from 'lucide-react'
 import { format } from 'date-fns'
+import { createReview, getAppointmentById, getLawyerById, hasReviewForAppointment, listPaymentsForAppointment } from '../lib/localData'
+import { useAuth } from '../contexts/AuthContext'
+import { useMemo, useState } from 'react'
+import toast from 'react-hot-toast'
 
 export default function CaseDetails() {
   const { id } = useParams()
+  const { user } = useAuth()
 
-  // Mock data - in real app, this would come from Supabase
-  const caseData = {
-    id: parseInt(id || '1'),
-    title: 'Employment Discrimination Case',
-    lawyer: 'Emily Rodriguez',
-    status: 'active',
-    category: 'Employment Law',
-    description: 'Filing a complaint regarding workplace discrimination based on age and gender. Seeking legal representation for EEOC complaint process.',
-    createdAt: '2024-01-05',
-    lastUpdated: '2024-01-15',
-    nextAction: 'Court hearing scheduled for January 25, 2024 at 10:00 AM',
-    documents: [
-      { id: 1, name: 'EEOC Complaint Form.pdf', uploadedAt: '2024-01-10', size: '2.4 MB' },
-      { id: 2, name: 'Employment Contract.pdf', uploadedAt: '2024-01-08', size: '1.8 MB' },
-      { id: 3, name: 'Email Correspondence.pdf', uploadedAt: '2024-01-06', size: '856 KB' },
-    ],
-    timeline: [
-      { date: '2024-01-15', event: 'Case status updated', description: 'Court hearing scheduled' },
-      { date: '2024-01-10', event: 'Document uploaded', description: 'EEOC Complaint Form submitted' },
-      { date: '2024-01-08', event: 'Consultation completed', description: 'Initial consultation with lawyer' },
-      { date: '2024-01-05', event: 'Case created', description: 'Case opened and assigned to lawyer' },
-    ],
-    payments: [
-      { id: 1, date: '2024-01-08', description: 'Initial Consultation', amount: 250, status: 'paid' },
-      { id: 2, date: '2024-01-15', description: 'Legal Services', amount: 500, status: 'pending' },
-    ],
+  const appt = id ? getAppointmentById(id) : null
+  const lawyer = appt ? getLawyerById(appt.lawyerId) : null
+  const payments = id ? listPaymentsForAppointment(id) : []
+  const alreadyReviewed = useMemo(() => (id ? hasReviewForAppointment(id) : false), [id])
+  const [review, setReview] = useState({ rating: 5, comment: '' })
+
+  if (!appt) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <Link to="/cases" className="text-accent hover:text-accent-dark mb-4 inline-block">
+          ← Back to Cases
+        </Link>
+        <div className="card">
+          <h1 className="text-2xl font-bold text-primary mb-2">Case not found</h1>
+          <p className="text-secondary">This appointment/case does not exist in offline storage.</p>
+        </div>
+      </div>
+    )
   }
+
+  const statusLabel =
+    appt.status === 'confirmed' ? 'ACTIVE' : appt.status === 'pending' ? 'PENDING' : appt.status.toUpperCase()
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -41,17 +41,17 @@ export default function CaseDetails() {
 
       <div className="mb-8">
         <div className="flex items-center justify-between mb-4">
-          <h1 className="text-3xl font-bold text-primary">{caseData.title}</h1>
-          <span className={`px-4 py-2 rounded-full text-sm font-bold ${
-            caseData.status === 'active' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'
-          }`}>
-            {caseData.status.toUpperCase()}
+          <h1 className="text-3xl font-bold text-primary">
+            Consultation — {lawyer?.specialization?.[0] ?? 'Legal Services'}
+          </h1>
+          <span className="px-4 py-2 rounded-full text-sm font-bold bg-blue-100 text-blue-800">
+            {statusLabel}
           </span>
         </div>
         <div className="flex flex-wrap gap-4 text-secondary">
-          <span><strong>Lawyer:</strong> {caseData.lawyer}</span>
-          <span><strong>Category:</strong> {caseData.category}</span>
-          <span><strong>Created:</strong> {format(new Date(caseData.createdAt), 'MMMM d, yyyy')}</span>
+          <span><strong>Lawyer:</strong> {lawyer?.name ?? 'Lawyer'}</span>
+          <span><strong>Category:</strong> {lawyer?.specialization?.[0] ?? 'General'}</span>
+          <span><strong>Created:</strong> {format(new Date(appt.createdAt), 'MMMM d, yyyy')}</span>
         </div>
       </div>
 
@@ -61,11 +61,17 @@ export default function CaseDetails() {
           {/* Case Description */}
           <div className="card">
             <h2 className="text-2xl font-bold mb-4">Case Overview</h2>
-            <p className="text-secondary mb-4">{caseData.description}</p>
-            {caseData.nextAction && (
+            <p className="text-secondary mb-4">{appt.caseDescription || 'No description provided.'}</p>
+            <div className="bg-accent/10 border-l-4 border-accent p-4">
+              <p className="font-bold mb-1">Appointment</p>
+              <p className="text-secondary">
+                {appt.date} at {appt.time} • {appt.durationMinutes} min • {appt.consultationType}
+              </p>
+            </div>
+            {appt.status !== 'cancelled' && (
               <div className="bg-accent/10 border-l-4 border-accent p-4">
                 <p className="font-bold mb-1">Next Action Required</p>
-                <p className="text-secondary">{caseData.nextAction}</p>
+                <p className="text-secondary">Attend the scheduled consultation or message your lawyer.</p>
               </div>
             )}
           </div>
@@ -77,11 +83,14 @@ export default function CaseDetails() {
               Case Timeline
             </h2>
             <div className="space-y-4">
-              {caseData.timeline.map((item, index) => (
+              {[
+                { date: appt.createdAt, event: 'Appointment created', description: 'Booking confirmed in offline mode' },
+                { date: appt.createdAt, event: 'Payment recorded', description: payments.length ? 'Payment stored locally' : 'No payment record' },
+              ].map((item, index, arr) => (
                 <div key={index} className="flex space-x-4">
                   <div className="flex flex-col items-center">
                     <div className="w-3 h-3 bg-primary rounded-full"></div>
-                    {index < caseData.timeline.length - 1 && (
+                    {index < arr.length - 1 && (
                       <div className="w-0.5 h-full bg-gray-300 mt-2"></div>
                     )}
                   </div>
@@ -111,28 +120,77 @@ export default function CaseDetails() {
                 <span>Upload</span>
               </button>
             </div>
-            <div className="space-y-3">
-              {caseData.documents.map((doc) => (
-                <div
-                  key={doc.id}
-                  className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50"
-                >
-                  <div className="flex items-center space-x-3">
-                    <FileText className="w-8 h-8 text-primary" />
-                    <div>
-                      <p className="font-medium">{doc.name}</p>
-                      <p className="text-sm text-secondary">
-                        {format(new Date(doc.uploadedAt), 'MMM d, yyyy')} • {doc.size}
-                      </p>
-                    </div>
-                  </div>
-                  <button className="text-accent hover:text-accent-dark">
-                    <Download size={20} />
-                  </button>
-                </div>
-              ))}
+            <div className="p-4 border border-dashed border-gray-300 rounded-lg bg-gray-50 text-sm text-secondary">
+              Offline mode: document upload can be implemented later (local file list).
             </div>
           </div>
+
+          {/* Review (after completion) */}
+          {appt.status === 'completed' && (
+            <div className="card">
+              <h2 className="text-2xl font-bold mb-2">Leave a Review</h2>
+              <p className="text-secondary mb-6">
+                Your review helps improve lawyer ranking (reviews + success rate).
+              </p>
+
+              {alreadyReviewed ? (
+                <div className="p-4 rounded-lg bg-green-50 border border-green-200 text-green-800 text-sm">
+                  Thanks — you already submitted a review for this appointment.
+                </div>
+              ) : (
+                <form
+                  className="space-y-4"
+                  onSubmit={(e) => {
+                    e.preventDefault()
+                    if (!id) return
+                    if (!lawyer) {
+                      toast.error('Lawyer not found')
+                      return
+                    }
+                    const reviewerName = user?.user_metadata?.name || user?.email || 'Client'
+                    createReview({
+                      lawyerId: lawyer.id,
+                      appointmentId: id,
+                      reviewerName,
+                      rating: review.rating,
+                      comment: review.comment.trim() || 'Great service.',
+                    })
+                    toast.success('Review submitted')
+                  }}
+                >
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Rating</label>
+                    <select
+                      className="input-field"
+                      value={review.rating}
+                      onChange={(e) => setReview({ ...review, rating: parseInt(e.target.value) })}
+                    >
+                      <option value={5}>5 - Excellent</option>
+                      <option value={4}>4 - Very good</option>
+                      <option value={3}>3 - Good</option>
+                      <option value={2}>2 - Fair</option>
+                      <option value={1}>1 - Poor</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Comment</label>
+                    <textarea
+                      className="input-field"
+                      rows={4}
+                      value={review.comment}
+                      onChange={(e) => setReview({ ...review, comment: e.target.value })}
+                      placeholder="Share your experience..."
+                    />
+                  </div>
+
+                  <button type="submit" className="btn-primary">
+                    Submit Review
+                  </button>
+                </form>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Sidebar */}
@@ -161,19 +219,24 @@ export default function CaseDetails() {
               Payment History
             </h2>
             <div className="space-y-3">
-              {caseData.payments.map((payment) => (
+              {payments.length === 0 && (
+                <div className="text-sm text-secondary">No payments recorded.</div>
+              )}
+              {payments.map((payment) => (
                 <div
                   key={payment.id}
                   className="flex justify-between items-center p-3 border border-gray-200 rounded-lg"
                 >
                   <div>
-                    <p className="font-medium text-sm">{payment.description}</p>
+                    <p className="font-medium text-sm">{payment.provider.toUpperCase()} payment</p>
                     <p className="text-xs text-secondary">
-                      {format(new Date(payment.date), 'MMM d, yyyy')}
+                      {format(new Date(payment.createdAt), 'MMM d, yyyy')}
                     </p>
                   </div>
                   <div className="text-right">
-                    <p className="font-bold">${payment.amount}</p>
+                    <p className="font-bold">
+                      {payment.currency} {payment.amount}
+                    </p>
                     <span className={`text-xs ${
                       payment.status === 'paid' ? 'text-green-600' : 'text-yellow-600'
                     }`}>

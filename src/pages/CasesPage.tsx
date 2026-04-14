@@ -1,9 +1,11 @@
 import { Link } from 'react-router-dom'
 import { FileText, Clock, CheckCircle, AlertCircle, Plus } from 'lucide-react'
 import { format } from 'date-fns'
+import { useAuth } from '../contexts/AuthContext'
+import { getLawyerById, listAppointmentsForClient } from '../lib/localData'
 
-interface Case {
-  id: number
+type CaseItem = {
+  id: string
   title: string
   lawyer: string
   status: 'active' | 'pending' | 'completed' | 'closed'
@@ -13,46 +15,28 @@ interface Case {
 }
 
 export default function CasesPage() {
-  // Mock data - in real app, this would come from Supabase
-  const cases: Case[] = [
-    {
-      id: 1,
-      title: 'Employment Discrimination Case',
-      lawyer: 'Emily Rodriguez',
-      status: 'active',
-      category: 'Employment Law',
-      lastUpdated: '2024-01-15',
-      nextAction: 'Court hearing scheduled for Jan 25',
-    },
-    {
-      id: 2,
-      title: 'Divorce Proceedings',
-      lawyer: 'Sarah Johnson',
-      status: 'active',
-      category: 'Family Law',
-      lastUpdated: '2024-01-14',
-      nextAction: 'Mediation session on Jan 22',
-    },
-    {
-      id: 3,
-      title: 'Contract Review',
-      lawyer: 'Robert Martinez',
-      status: 'pending',
-      category: 'Business Law',
-      lastUpdated: '2024-01-10',
-      nextAction: 'Awaiting lawyer review',
-    },
-    {
-      id: 4,
-      title: 'Personal Injury Claim',
-      lawyer: 'Lisa Anderson',
-      status: 'completed',
-      category: 'Personal Injury',
-      lastUpdated: '2023-12-20',
-    },
-  ]
+  const { user } = useAuth()
+  const email = user?.email ?? ''
 
-  const getStatusColor = (status: Case['status']) => {
+  const appointments = email ? listAppointmentsForClient(email) : []
+
+  const cases: CaseItem[] = appointments.map((a) => {
+    const lawyer = getLawyerById(a.lawyerId)
+    const status: CaseItem['status'] =
+      a.status === 'confirmed' || a.status === 'pending' ? 'active' : a.status === 'completed' ? 'completed' : 'closed'
+
+    return {
+      id: a.id,
+      title: `Consultation — ${lawyer?.specialization?.[0] ?? 'Legal Services'}`,
+      lawyer: lawyer?.name ?? 'Lawyer',
+      status,
+      category: lawyer?.specialization?.[0] ?? 'General',
+      lastUpdated: a.createdAt,
+      nextAction: `${a.date} at ${a.time} (${a.consultationType})`,
+    }
+  })
+
+  const getStatusColor = (status: CaseItem['status']) => {
     switch (status) {
       case 'active':
         return 'bg-blue-100 text-blue-800'
@@ -67,7 +51,7 @@ export default function CasesPage() {
     }
   }
 
-  const getStatusIcon = (status: Case['status']) => {
+  const getStatusIcon = (status: CaseItem['status']) => {
     switch (status) {
       case 'active':
         return <Clock className="w-4 h-4" />

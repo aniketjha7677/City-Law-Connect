@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { Calendar, Clock, Video, Phone, MapPin, CreditCard } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { createAppointment, createPayment, getLawyerById } from '../lib/localData'
 
 export default function BookingPage() {
   const { lawyerId } = useParams()
@@ -15,13 +16,24 @@ export default function BookingPage() {
   })
   const [loading, setLoading] = useState(false)
 
-  // Mock lawyer data
-  const lawyer = {
-    id: parseInt(lawyerId || '1'),
-    name: 'Sarah Johnson',
-    specialization: 'Family Law',
-    price: '$250/hr',
-  }
+  const lawyerBase = getLawyerById(lawyerId || 'lawyer_1')
+  const lawyer = useMemo(
+    () => ({
+      id: lawyerId || 'lawyer_1',
+      name: lawyerBase?.name ?? 'Lawyer',
+      specialization: lawyerBase?.specialization?.[0] ?? 'Legal Services',
+      price: `$${lawyerBase?.consultationFeePerHour ?? 0}/hr`,
+      feePerHour: lawyerBase?.consultationFeePerHour ?? 0,
+    }),
+    [lawyerBase, lawyerId]
+  )
+
+  const [client, setClient] = useState({
+    name: '',
+    email: '',
+    provider: 'stripe' as 'stripe' | 'razorpay',
+    currency: 'USD' as 'USD' | 'INR',
+  })
 
   const availableDates = [
     '2024-01-20',
@@ -49,12 +61,41 @@ export default function BookingPage() {
     }
 
     setLoading(true)
-    // Simulate booking process
-    setTimeout(() => {
-      toast.success('Appointment booked successfully!')
+    try {
+      if (!client.name || !client.email) {
+        toast.error('Please enter your name and email')
+        return
+      }
+
+      const total = lawyer.feePerHour * (parseInt(formData.duration) / 60)
+
+      const appt = createAppointment({
+        lawyerId: lawyer.id,
+        clientName: client.name,
+        clientEmail: client.email,
+        date: formData.date,
+        time: formData.time,
+        durationMinutes: parseInt(formData.duration),
+        consultationType: formData.consultationType as any,
+        caseDescription: formData.caseDescription,
+        status: 'confirmed',
+      })
+
+      // Payment integration (offline simulation)
+      createPayment({
+        appointmentId: appt.id,
+        lawyerId: lawyer.id,
+        amount: total,
+        currency: client.currency,
+        provider: client.provider,
+        status: 'paid',
+      })
+
+      toast.success(`Appointment booked and paid via ${client.provider.toUpperCase()} (simulated).`)
       navigate('/cases')
+    } finally {
       setLoading(false)
-    }, 1500)
+    }
   }
 
   return (
@@ -82,6 +123,56 @@ export default function BookingPage() {
               <h3 className="font-bold text-lg">{lawyer.name}</h3>
               <p className="text-secondary">{lawyer.specialization}</p>
               <p className="text-primary font-bold">{lawyer.price}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="card">
+          <h2 className="text-xl font-bold mb-4">Your Details</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Full Name</label>
+              <input
+                className="input-field"
+                value={client.name}
+                onChange={(e) => setClient({ ...client, name: e.target.value })}
+                placeholder="Your name"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
+              <input
+                className="input-field"
+                value={client.email}
+                onChange={(e) => setClient({ ...client, email: e.target.value })}
+                placeholder="you@example.com"
+                type="email"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Payment Provider</label>
+              <select
+                className="input-field"
+                value={client.provider}
+                onChange={(e) => setClient({ ...client, provider: e.target.value as any })}
+              >
+                <option value="stripe">Stripe</option>
+                <option value="razorpay">Razorpay</option>
+              </select>
+              <p className="text-xs text-secondary mt-1">Offline mode: payment is simulated and recorded locally.</p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Currency</label>
+              <select
+                className="input-field"
+                value={client.currency}
+                onChange={(e) => setClient({ ...client, currency: e.target.value as any })}
+              >
+                <option value="USD">USD</option>
+                <option value="INR">INR</option>
+              </select>
             </div>
           </div>
         </div>
@@ -217,11 +308,11 @@ export default function BookingPage() {
           <div className="space-y-2">
             <div className="flex justify-between">
               <span className="text-secondary">Consultation Fee ({formData.duration} min)</span>
-              <span className="font-bold">${250 * (parseInt(formData.duration) / 60)}</span>
+              <span className="font-bold">${lawyer.feePerHour * (parseInt(formData.duration) / 60)}</span>
             </div>
             <div className="flex justify-between pt-2 border-t border-gray-200">
               <span className="text-lg font-bold">Total</span>
-              <span className="text-lg font-bold text-primary">${250 * (parseInt(formData.duration) / 60)}</span>
+              <span className="text-lg font-bold text-primary">${lawyer.feePerHour * (parseInt(formData.duration) / 60)}</span>
             </div>
           </div>
         </div>

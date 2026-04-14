@@ -1,12 +1,26 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
+import { createContext, useContext, useEffect, useMemo, useState, ReactNode } from 'react'
 import { User } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabase'
 
+
+export type AppRole = 'user' | 'lawyer' | 'admin'
+
+export type Profile = {
+  id: string
+  email: string | null
+  name: string | null
+  location: string | null
+  role: AppRole
+}
+
 interface AuthContextType {
   user: User | null
+  profile: Profile | null
+  role: AppRole | null
   loading: boolean
-  signUp: (email: string, password: string, name: string, location: string) => Promise<void>
-  signIn: (email: string, password: string) => Promise<void>
+  signUp: (email: string, password: string, name: string, location: string) => Promise<void> // user signup (back-compat)
+  signUpLawyer: (input: { email: string; password: string; name: string; location: string }) => Promise<void>
+  signIn: (email: string, password: string) => Promise<AppRole | null>
   signOut: () => Promise<void>
 }
 
@@ -14,27 +28,38 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
+  const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    // Check if Supabase is configured
-    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-    const isDemoMode = !supabaseUrl || supabaseUrl === 'https://placeholder.supabase.co'
+  const role: AppRole | null = useMemo(() => profile?.role ?? null, [profile?.role])
 
-    if (isDemoMode) {
-      // Demo mode - create demo user immediately
-      const demoUser = {
-        id: 'demo-user',
-        email: 'demo@citylawconnect.com',
-        user_metadata: { name: 'Demo User', location: 'New York, NY' },
-        app_metadata: {},
-        aud: 'authenticated',
-        created_at: new Date().toISOString(),
-      } as unknown as User
-      setUser(demoUser)
-      setLoading(false)
+  const fetchProfile = async (userId: string) => {
+
+
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('id,email,full_name,city,state,role')
+      .eq('id', userId)
+      .maybeSingle()
+
+    if (error) throw error
+    if (!data) {
+      setProfile(null)
       return
     }
+
+    setProfile({
+      id: data.id,
+      email: data.email ?? null,
+      name: data.full_name ?? null,
+      location: data.city ?? null,
+      role: (data.role ?? 'user') as AppRole,
+    })
+  }
+
+  useEffect(() => {
+    // Local-only mode (no database): restore local session if exists.
+
 
     // Real Supabase mode - check for session
     supabase.auth.getSession().then(({ data: { session }, error }) => {
@@ -42,10 +67,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.warn('Supabase auth error:', error.message)
       }
       setUser(session?.user ?? null)
+      if (session?.user?.id) {
+        fetchProfile(session.user.id).catch((e) => {
+          console.warn('Profile fetch error:', e?.message ?? e)
+          setProfile(null)
+        })
+      } else {
+        setProfile(null)
+      }
       setLoading(false)
     }).catch((error) => {
       console.warn('Supabase connection error:', error)
       setUser(null)
+      setProfile(null)
       setLoading(false)
     })
 
@@ -54,6 +88,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null)
+      if (session?.user?.id) {
+        fetchProfile(session.user.id).catch((e) => {
+          console.warn('Profile fetch error:', e?.message ?? e)
+          setProfile(null)
+        })
+      } else {
+        setProfile(null)
+      }
       setLoading(false)
     })
 
@@ -61,22 +103,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const signUp = async (email: string, password: string, name: string, location: string) => {
-    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-    const isDemoMode = !supabaseUrl || supabaseUrl === 'https://placeholder.supabase.co'
-    
-    if (isDemoMode) {
-      // Demo mode - just set demo user
-      const demoUser = {
-        id: 'demo-user',
-        email: email,
-        user_metadata: { name, location },
-        app_metadata: {},
-        aud: 'authenticated',
-        created_at: new Date().toISOString(),
-      } as unknown as User
-      setUser(demoUser)
-      return
-    }
+
 
     const { data, error } = await supabase.auth.signUp({
       email,
@@ -93,53 +120,83 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Create user profile
       await supabase.from('profiles').insert({
         id: data.user.id,
-        name,
-        location,
+        full_name: name,
         email,
+        city: location,   // or split if needed
+        role: 'user',
       })
+      await fetchProfile(data.user.id)
     }
   }
 
-  const signIn = async (email: string, password: string) => {
-    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-    const isDemoMode = !supabaseUrl || supabaseUrl === 'https://placeholder.supabase.co'
-    
-    if (isDemoMode) {
-      // Demo mode - just set demo user
-      const demoUser = {
-        id: 'demo-user',
-        email: email,
-        user_metadata: { name: 'Demo User', location: 'New York, NY' },
-        app_metadata: {},
-        aud: 'authenticated',
-        created_at: new Date().toISOString(),
-      } as unknown as User
-      setUser(demoUser)
-      return
-    }
+  const signUpLawyer = async (input: { email: string; password: string; name: string; location: string }) => {
+    const { email, password, name, location } = input
 
-    const { error } = await supabase.auth.signInWithPassword({
+
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
+      options: {
+        data: {
+          name,
+          location,
+        },
+      },
     })
     if (error) throw error
+    if (data.user) {
+      // Create lawyer profile + lawyer row (minimal defaults)
+      await supabase.from('profiles').insert({
+        id: data.user.id,
+        full_name: name,
+        email,
+        city: location,
+        role: 'lawyer',
+      })
+
+      await supabase.from('lawyers').insert({
+        id: data.user.id,
+        display_name: name,
+        location,
+        consultation_fee: 0,
+        verified_status: 'pending',
+      })
+
+      await fetchProfile(data.user.id)
+    }
   }
 
+  const signIn = async (email: string, password: string): Promise<AppRole | null> => {
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+  })
+
+  if (error) throw error
+
+  if (data.user) {
+    const { data: profileData, error: profileError } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', data.user.id)
+      .single()
+
+    if (profileError) throw profileError
+
+    return profileData?.role ?? null
+  }
+
+  return null
+}
+
   const signOut = async () => {
-    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-    const isDemoMode = !supabaseUrl || supabaseUrl === 'https://placeholder.supabase.co'
-    
-    if (isDemoMode) {
-      setUser(null)
-      return
-    }
 
     const { error } = await supabase.auth.signOut()
     if (error) throw error
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, signUp, signIn, signOut }}>
+    <AuthContext.Provider value={{ user, profile, role, loading, signUp, signUpLawyer, signIn, signOut }}>
       {children}
     </AuthContext.Provider>
   )

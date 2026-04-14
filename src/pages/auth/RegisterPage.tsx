@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
-import { User, Mail, MapPin } from 'lucide-react'
+import { User, Mail, MapPin, Eye, EyeOff, Lock } from 'lucide-react'
 import toast from 'react-hot-toast'
 import ScalesIcon from '../../components/ScalesIcon'
 
@@ -11,12 +11,24 @@ export default function RegisterPage() {
     email: '',
     password: '',
     confirmPassword: '',
-    location: '',
-    userType: 'individual',
+    state: '',
+    city: '',
   })
+  const [suggestions, setSuggestions] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
   const { signUp, signOut } = useAuth()
   const navigate = useNavigate()
+  const [citySuggestions, setCitySuggestions] = useState<string[]>([])
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+
+  const stateCityMap: any = {
+    Karnataka: ["Bangalore", "Mysore", "Mangalore"],
+    Maharashtra: ["Mumbai", "Pune", "Nagpur"],
+    Delhi: ["New Delhi"],
+    "Tamil Nadu": ["Chennai", "Coimbatore"],
+    "Uttar Pradesh": ["Lucknow", "Kanpur", "Noida"],
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -33,7 +45,12 @@ export default function RegisterPage() {
 
     setLoading(true)
     try {
-      await signUp(formData.email, formData.password, formData.name, formData.location)
+      await signUp(
+        formData.email,
+        formData.password,
+        formData.name,
+        `${formData.city}, ${formData.state}`
+      )
 
       // 🔥 FORCE LOGOUT (important)
       await signOut()
@@ -46,6 +63,47 @@ export default function RegisterPage() {
       toast.error(error.message || 'Failed to create account')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleLocationChange = async (value: string) => {
+    setFormData({
+      ...formData,
+      state: value
+    })
+
+    if (value.length < 3) {
+      setSuggestions([])
+      return
+    }
+
+    try {
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&countrycodes=in&featuretype=state&q=${value}`,
+        {
+          headers: {
+            "Accept-Language": "en",
+            "User-Agent": "CityLawConnectApp"
+          }
+        }
+      )
+
+      const data = await res.json()
+
+      const states = data
+        .filter((item: any) =>
+          item.addresstype === "state" ||
+          item.type === "administrative"
+        )
+        .map((item: any) => item.display_name.split(",")[0])
+
+      // remove duplicates
+      const uniqueStates = [...new Set(states)]
+
+      setSuggestions(uniqueStates)
+
+    } catch (error) {
+      console.error(error)
     }
   }
 
@@ -73,7 +131,15 @@ export default function RegisterPage() {
             </p>
           </div>
 
-          <form className="space-y-5" onSubmit={handleSubmit}>
+          <form autoComplete="off" className="space-y-5" onSubmit={handleSubmit}>
+            <div className="p-4 rounded-lg bg-gray-50 border border-gray-200">
+              <p className="text-sm text-secondary">
+                Creating a lawyer account?{' '}
+                <Link to="/lawyer/register" className="text-accent hover:text-accent-dark font-medium">
+                  Go to Lawyer Registration
+                </Link>
+              </p>
+            </div>
             {/* Full Name */}
             <div>
               <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
@@ -121,7 +187,7 @@ export default function RegisterPage() {
             {/* Location */}
             <div>
               <label htmlFor="location" className="block text-sm font-medium text-gray-700 mb-2">
-                Location
+                State
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -129,60 +195,130 @@ export default function RegisterPage() {
                 </div>
                 <input
                   id="location"
-                  name="location"
+                  name="state_input"
                   type="text"
+                  autoComplete="new-password"
                   required
-                  placeholder="City, State"
+                  placeholder="Enter your state"
                   className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                  value={formData.location}
-                  onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                  value={formData.state}
+                  onChange={(e) => handleLocationChange(e.target.value)}
                 />
+                {/* ✅ ADD THIS */}
+                {suggestions.length > 0 && (
+                  <ul className="absolute z-10 bg-white border w-full mt-1 rounded-lg shadow max-h-40 overflow-y-auto">
+                    {suggestions.map((item, index) => (
+                      <li
+                        key={index}
+                        className="p-2 hover:bg-gray-100 cursor-pointer text-sm"
+                        onClick={() => {
+                          setFormData({
+                            ...formData,
+                            state: item,
+                            city: ""   // reset city
+                          })
+
+                          setCitySuggestions(stateCityMap[item] || [])  // ✅ load cities
+                          setSuggestions([])
+                        }}
+                      >
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
             </div>
 
-            {/* User Type */}
+            {/* City */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                User Type
+              <label htmlFor="city" className="block text-sm font-medium text-gray-700 mb-2">
+                City
               </label>
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  onClick={() => setFormData({ ...formData, userType: 'individual' })}
-                  className={`py-3 px-4 rounded-lg border-2 font-medium transition-colors ${formData.userType === 'individual'
-                    ? 'border-accent bg-accent/10 text-accent'
-                    : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'
-                    }`}
-                >
-                  Individual
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFormData({ ...formData, userType: 'business' })}
-                  className={`py-3 px-4 rounded-lg border-2 font-medium transition-colors ${formData.userType === 'business'
-                    ? 'border-accent bg-accent/10 text-accent'
-                    : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'
-                    }`}
-                >
-                  Business
-                </button>
+
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <MapPin className="h-5 w-5 text-gray-400" />
+                </div>
+
+                <input
+                  id="city"
+                  name="city"
+                  type="text"
+                  required
+                  placeholder="Select your city"
+                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg"
+                  value={formData.city}
+                  onChange={(e) => {
+                    const value = e.target.value
+
+                    setFormData((prev) => {
+                      const filtered = (stateCityMap[prev.state] || []).filter((c: string) =>
+                        c.toLowerCase().includes(value.toLowerCase())
+                      )
+
+                      setCitySuggestions(filtered)
+
+                      return {
+                        ...prev,
+                        city: value
+                      }
+                    })
+                  }}
+                />
+
+                {/* ✅ City Suggestions */}
+                {citySuggestions.length > 0 && (
+                  <ul className="absolute z-10 bg-white border w-full mt-1 rounded-lg shadow max-h-40 overflow-y-auto">
+                    {citySuggestions.map((city, index) => (
+                      <li
+                        key={index}
+                        className="p-2 hover:bg-gray-100 cursor-pointer text-sm"
+                        onClick={() => {
+                          setFormData({ ...formData, city })
+                          setCitySuggestions([])
+                        }}
+                      >
+                        {city}
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
             </div>
+
 
             {/* Password */}
             <div>
               <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
                 Password
               </label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                required
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                value={formData.password}
-                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-              />
+              <div className="relative">
+                {/* 🔒 Lock Icon */}
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Lock className="h-5 w-5 text-gray-400" />
+                </div>
+
+                <input
+                  id="password"
+                  name="password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Password"
+                  required
+                  className="w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                  value={formData.password}
+                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                />
+
+                {/* 👁 Eye Icon */}
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500"
+                >
+                  {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                </button>
+              </div>
             </div>
 
             {/* Confirm Password */}
@@ -190,16 +326,31 @@ export default function RegisterPage() {
               <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-2">
                 Confirm Password
               </label>
+            <div className="relative">
+              {/* 🔒 Lock Icon */}
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Lock className="h-5 w-5 text-gray-400" />
+              </div>
               <input
                 id="confirmPassword"
                 name="confirmPassword"
-                type="password"
+                type={showConfirmPassword ? "text" : "password"}
                 required
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                placeholder="Confirm Password"
+                className="w-full pl-12 pr-10 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                 value={formData.confirmPassword}
                 onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
               />
+
+              <button
+                type="button"
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500"
+              >
+                {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+              </button>
             </div>
+             </div>
 
             {/* Terms and Conditions */}
             <div className="flex items-start">

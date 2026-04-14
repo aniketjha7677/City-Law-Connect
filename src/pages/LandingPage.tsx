@@ -35,6 +35,12 @@ export default function LandingPage() {
                   <Link to="/chat" className="border-2 border-primary text-primary px-8 py-4 rounded-lg font-bold hover:bg-primary hover:text-white transition-colors text-lg">
                     Try AI Chat
                   </Link>
+                  <Link
+                    to="/lawyer/login"
+                    className="border-2 border-accent text-accent px-8 py-4 rounded-lg font-bold hover:bg-accent hover:text-white transition-colors text-lg"
+                  >
+                    I’m a Lawyer
+                  </Link>
                 </>
               )}
             </div>
@@ -128,9 +134,17 @@ export default function LandingPage() {
             Join thousands of users who trust CityLaw Connect for their legal needs
           </p>
           {!user && (
-            <Link to="/auth/register" className="btn-accent text-lg px-8 py-4">
-              Create Your Free Account
-            </Link>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Link to="/auth/register" className="btn-accent text-lg px-8 py-4">
+                Create User Account
+              </Link>
+              <Link
+                to="/lawyer/register"
+                className="border-2 border-white text-white px-8 py-4 rounded-lg font-bold hover:bg-white hover:text-primary transition-colors text-lg"
+              >
+                Create Lawyer Account
+              </Link>
+            </div>
           )}
         </div>
       </section>

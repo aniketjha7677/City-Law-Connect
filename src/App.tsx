@@ -14,6 +14,16 @@ import CaseDetails from './pages/CaseDetails'
 import ResourcesPage from './pages/ResourcesPage'
 import ProfilePage from './pages/ProfilePage'
 import EmergencyPage from './pages/EmergencyPage'
+import LawyerLoginPage from './pages/lawyer/LawyerLoginPage'
+import LawyerRegisterPage from './pages/lawyer/LawyerRegisterPage'
+import LawyerDashboard from './pages/lawyer/LawyerDashboard'
+import LawyerAppointmentsPage from './pages/lawyer/LawyerAppointmentsPage'
+import LawyerAnalyticsPage from './pages/lawyer/LawyerAnalyticsPage'
+import LawyerProfilePage from './pages/lawyer/LawyerProfilePage'
+import AdminDashboard from './pages/admin/AdminDashboard'
+import LawyerLayout from './components/lawyer/LawyerLayout'
+import PrivacyPage from './pages/PrivacyPage'
+import TermsPage from './pages/TermsPage'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
@@ -33,14 +43,74 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>
 }
 
+function RoleRoute({ children, allow }: { children: React.ReactNode; allow: Array<'user' | 'lawyer' | 'admin'> }) {
+  const { user, role, loading } = useAuth()
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-xl">Loading...</div>
+      </div>
+    )
+  }
+
+  if (!user) return <Navigate to="/auth/login" replace />
+
+  // Role can briefly be null right after auth loads; wait instead of redirecting to user dashboard.
+  if (!role) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-xl">Loading...</div>
+      </div>
+    )
+  }
+
+  if (!allow.includes(role)) return <Navigate to="/dashboard" replace />
+
+  return <>{children}</>
+}
+
 function AppRoutes() {
-  const { user } = useAuth()
+  const { user, role } = useAuth()
   
   return (
     <Routes>
       <Route path="/" element={<LandingPage />} />
-      <Route path="/auth/register" element={user ? <Navigate to="/dashboard" replace /> : <RegisterPage />} />
-      <Route path="/auth/login" element={user ? <Navigate to="/dashboard" replace /> : <LoginPage />} />
+      <Route
+        path="/auth/register"
+        element={
+          user ? (
+            role ? (
+              <Navigate to={role === 'lawyer' || role === 'admin' ? '/lawyer/dashboard' : '/dashboard'} replace />
+            ) : (
+              <div className="min-h-screen flex items-center justify-center">
+                <div className="text-xl">Loading...</div>
+              </div>
+            )
+          ) : (
+            <RegisterPage />
+          )
+        }
+      />
+      <Route
+        path="/auth/login"
+        element={
+          user ? (
+            role ? (
+              <Navigate to={role === 'lawyer' || role === 'admin' ? '/lawyer/dashboard' : '/dashboard'} replace />
+            ) : (
+              <div className="min-h-screen flex items-center justify-center">
+                <div className="text-xl">Loading...</div>
+              </div>
+            )
+          ) : (
+            <LoginPage />
+          )
+        }
+      />
+
+      <Route path="/lawyer/register" element={user ? <Navigate to="/lawyer/dashboard" replace /> : <LawyerRegisterPage />} />
+      <Route path="/lawyer/login" element={user ? <Navigate to="/lawyer/dashboard" replace /> : <LawyerLoginPage />} />
       
       <Route
         path="/dashboard"
@@ -50,6 +120,61 @@ function AppRoutes() {
               <Dashboard />
             </Layout>
           </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/lawyer/dashboard"
+        element={
+          <RoleRoute allow={['lawyer', 'admin']}>
+            <LawyerLayout>
+              <LawyerDashboard />
+            </LawyerLayout>
+          </RoleRoute>
+        }
+      />
+
+      <Route
+        path="/lawyer/appointments"
+        element={
+          <RoleRoute allow={['lawyer', 'admin']}>
+            <LawyerLayout>
+              <LawyerAppointmentsPage />
+            </LawyerLayout>
+          </RoleRoute>
+        }
+      />
+
+      <Route
+        path="/lawyer/analytics"
+        element={
+          <RoleRoute allow={['lawyer', 'admin']}>
+            <LawyerLayout>
+              <LawyerAnalyticsPage />
+            </LawyerLayout>
+          </RoleRoute>
+        }
+      />
+
+      <Route
+        path="/lawyer/profile"
+        element={
+          <RoleRoute allow={['lawyer', 'admin']}>
+            <LawyerLayout>
+              <LawyerProfilePage />
+            </LawyerLayout>
+          </RoleRoute>
+        }
+      />
+
+      <Route
+        path="/admin"
+        element={
+          <RoleRoute allow={['admin']}>
+            <Layout>
+              <AdminDashboard />
+            </Layout>
+          </RoleRoute>
         }
       />
       <Route
@@ -142,6 +267,8 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       />
+      <Route path="/privacy" element={<PrivacyPage />} />
+      <Route path="/terms" element={<TermsPage />} />
     </Routes>
   )
 }

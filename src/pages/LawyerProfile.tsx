@@ -1,50 +1,40 @@
 import { useParams, Link } from 'react-router-dom'
 import { MapPin, Star, Clock, DollarSign, Calendar, MessageSquare, Phone, Mail } from 'lucide-react'
+import { getLawyerById, getReviewsForLawyer } from '../lib/localData'
 
 export default function LawyerProfile() {
   const { id } = useParams()
 
-  // Mock data - in real app, this would come from Supabase
+  const lawyerBase = getLawyerById(id || 'lawyer_1')
+  const reviewsData = getReviewsForLawyer(id || 'lawyer_1')
+  const rating =
+    reviewsData.length ? reviewsData.reduce((s, r) => s + r.rating, 0) / reviewsData.length : 0
+
   const lawyer = {
-    id: parseInt(id || '1'),
-    name: 'Sarah Johnson',
-    specialization: ['Family Law', 'Divorce', 'Child Custody'],
-    rating: 4.9,
-    reviews: 127,
-    location: 'New York, NY',
+    id: id || 'lawyer_1',
+    name: lawyerBase?.name ?? 'Lawyer',
+    specialization: lawyerBase?.specialization ?? [],
+    rating: Number(rating.toFixed(1)),
+    reviews: reviewsData.length,
+    location: lawyerBase?.location ?? '',
     address: '123 Legal Street, Suite 400, New York, NY 10001',
-    price: '$250/hr',
+    price: `$${lawyerBase?.consultationFeePerHour ?? 0}/hr`,
     availability: 'Available this week',
-    experience: '15 years',
-    education: 'J.D., Harvard Law School',
-    bio: 'Sarah Johnson is a highly experienced family law attorney with over 15 years of practice. She specializes in divorce, child custody, and family mediation. Sarah is known for her compassionate approach and dedication to achieving the best outcomes for her clients.',
-    languages: ['English', 'Spanish'],
+    experience: '10+ years',
+    education: 'J.D.',
+    bio: 'This lawyer profile is running in offline mode. You can extend this data in `src/lib/localData.ts`.',
+    languages: ['English'],
     consultationTypes: ['Video Call', 'Phone Call', 'In-Person'],
+    successRate: lawyerBase?.successRate ?? 0,
   }
 
-  const reviews = [
-    {
-      id: 1,
-      name: 'John Doe',
-      rating: 5,
-      date: '2024-01-10',
-      comment: 'Sarah was incredibly helpful and professional. She guided me through my divorce process with care and expertise.',
-    },
-    {
-      id: 2,
-      name: 'Jane Smith',
-      rating: 5,
-      date: '2024-01-05',
-      comment: 'Excellent lawyer! Very responsive and knowledgeable. Highly recommend.',
-    },
-    {
-      id: 3,
-      name: 'Mike Johnson',
-      rating: 4,
-      date: '2023-12-28',
-      comment: 'Great experience overall. Sarah helped me understand all my options clearly.',
-    },
-  ]
+  const reviews = reviewsData.map((r) => ({
+    id: r.id,
+    name: r.reviewerName,
+    rating: r.rating,
+    date: r.createdAt.split('T')[0],
+    comment: r.comment,
+  }))
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -67,6 +57,9 @@ export default function LawyerProfile() {
                   <Star className="w-5 h-5 text-accent fill-current" />
                   <span className="text-xl font-bold">{lawyer.rating}</span>
                   <span className="text-secondary">({lawyer.reviews} reviews)</span>
+                </div>
+                <div className="text-sm text-secondary mb-4">
+                  Success rate: <span className="font-bold text-primary">{lawyer.successRate}%</span>
                 </div>
                 <div className="flex flex-wrap gap-2 mb-4">
                   {lawyer.specialization.map((spec) => (
