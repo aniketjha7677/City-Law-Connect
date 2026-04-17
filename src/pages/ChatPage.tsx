@@ -3,12 +3,31 @@ import { Send, Paperclip, AlertCircle } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { chatWithAI } from "@/lib/openai"
 import toast from 'react-hot-toast'
+import { getLawyers } from "@/lib/lawyers";
 
 interface Message {
   id: string
   role: 'user' | 'assistant'
   content: string
   timestamp: Date
+}
+
+interface Lawyer {
+  id: string;
+  display_name?: string;
+  location?: string;
+  specializations?: string[];
+}
+
+function detectCategory(text: string): string {
+  const t = text.toLowerCase();
+
+  if (t.includes("divorce")) return "family";
+  if (t.includes("ipc") || t.includes("fraud")) return "criminal";
+  if (t.includes("property")) return "civil";
+  if (t.includes("company")) return "corporate";
+
+  return "general";
 }
 
 export default function ChatPage() {
@@ -22,10 +41,13 @@ export default function ChatPage() {
   ])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
+  const [recommendedLawyers, setRecommendedLawyers] = useState<Lawyer[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
+    }
   }
 
   useEffect(() => {
@@ -42,40 +64,56 @@ export default function ChatPage() {
   ]
 
   const handleSend = async () => {
-    if (!input.trim()) return
+    console.log("SEND BUTTON CLICKED");
+
+    if (!input.trim()) return;
 
     const userMessage: Message = {
       id: Date.now().toString(),
       role: 'user',
       content: input,
       timestamp: new Date(),
+    };
+
+    setInput('');
+    setLoading(true);
+
+    // ✅ Add user message first
+    setMessages(prev => [...prev, userMessage]);
+
+    try {
+      const response = await chatWithAI([
+        ...messages,
+        userMessage
+      ]);
+
+      // ✅ detect category
+      const category = detectCategory(userMessage.content);
+      // ✅ fetch lawyers
+      const lawyers = await getLawyers(category);
+      console.log("LAWYERS:", lawyers);
+      // ✅ save to state
+      setRecommendedLawyers(lawyers);
+
+      console.log("AI RESPONSE:", response);
+
+      const assistantMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: String(response),
+        timestamp: new Date(),
+      };
+
+      // ✅ Add AI message
+      setMessages(prev => [...prev, assistantMessage]);
+
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to get AI response");
+    } finally {
+      setLoading(false);
     }
-
-    setMessages((prev) => [...prev, userMessage])
-    setInput('')
-    setLoading(true)
-
-    // Simulate AI response - in real app, this would call OpenAI API
-     try {
-    const response = await chatWithAI([
-      { role: "user", content: userMessage.content }
-    ])
-
-    const assistantMessage: Message = {
-      id: (Date.now() + 1).toString(),
-      role: 'assistant',
-      content: response,
-      timestamp: new Date(),
-    }
-
-    setMessages((prev) => [...prev, assistantMessage])
-  } catch (error) {
-    toast.error("Failed to get AI response")
-  } finally {
-    setLoading(false)
-  }
-
-  }
+  };
 
   const handleQuickTopic = (topic: string) => {
     setInput(`I need help with ${topic}`)
@@ -116,16 +154,18 @@ export default function ChatPage() {
                 className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
               >
                 <div
-                  className={`max-w-[80%] rounded-lg p-4 ${
-                    message.role === 'user'
-                      ? 'bg-primary text-white'
-                      : 'bg-gray-100 text-gray-900'
-                  }`}
+                  className={`max-w-[80%] rounded-lg p-4 ${message.role === 'user'
+                    ? 'bg-primary text-white'
+                    : 'bg-gray-100 text-gray-900'
+                    }`}
                 >
-                  <p className="whitespace-pre-wrap">{message.content}</p>
-                  <p className={`text-xs mt-2 ${
-                    message.role === 'user' ? 'text-gray-200' : 'text-gray-500'
-                  }`}>
+                  <div style={{ whiteSpace: "pre-wrap" }}>
+                    {message.content}
+                  </div>
+                  <p
+                    className={`text-xs mt-2 ${message.role === 'user' ? 'text-gray-200' : 'text-gray-500'
+                      }`}
+                  >
                     {message.timestamp.toLocaleTimeString()}
                   </p>
                 </div>
@@ -140,6 +180,33 @@ export default function ChatPage() {
                     <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></div>
                   </div>
                 </div>
+              </div>
+            )}
+
+            {recommendedLawyers.length > 0 && (
+              <div className="mt-4 p-4 bg-white border rounded-lg">
+                <h3 className="font-bold mb-2 text-primary">
+                  Recommended Lawyers
+                </h3>
+
+                {recommendedLawyers.map((lawyer) => (
+                  <div
+                    key={lawyer.id}
+                    className="border p-3 rounded mb-2 hover:shadow-md transition"
+                  >
+                    <p className="font-semibold">
+                      {lawyer.display_name || "Unknown"}
+                    </p>
+
+                    <p className="text-sm text-gray-600">
+                      Specialization: {lawyer.specializations?.join(", ") || "N/A"}
+                    </p>
+
+                    <p className="text-sm text-gray-600">
+                      Location: {lawyer.location || "N/A"}
+                    </p>
+                  </div>
+                ))}
               </div>
             )}
             <div ref={messagesEndRef} />
@@ -166,7 +233,9 @@ export default function ChatPage() {
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && handleSend()}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') handleSend();
+            }}
             placeholder="Type your legal question here..."
             className="flex-1 input-field"
           />

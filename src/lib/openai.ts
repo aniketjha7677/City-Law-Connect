@@ -1,5 +1,5 @@
 // OpenRouter integration for AI Legal Chatbot
-const OPENAI_API_KEY = import.meta.env.VITE_OPENAI_API_KEY || ''
+
 export interface ChatMessage {
   role: 'user' | 'assistant' | 'system'
   content: string
@@ -38,66 +38,55 @@ const isLegal = (text: string): boolean => {
 };
 
 export async function chatWithAI(messages: ChatMessage[]): Promise<string> {
-  if (!OPENAI_API_KEY) {
-    return "AI service is not configured. Please add API key."
-  }
-  const lastMessage = messages[messages.length - 1]?.content || ""
-  // 🚫 Block non-legal questions
-  const lower = lastMessage.toLowerCase().trim()
-  // 👋 allow greetings
+
+  console.log("chatWithAI called");
+
+  const lastMessage = messages[messages.length - 1]?.content || "";
+  const lower = lastMessage.toLowerCase().trim();
+
+  console.log("User message:", lastMessage);
+
   if (["hi", "hello", "hey"].includes(lower)) {
-    return "Hello! I can help you with legal questions. What would you like to know?"
+    console.log("Greeting detected");
+    return "Hello! I can help you with legal questions.";
   }
-  // 🚫 block non-legal
+
   if (!isLegal(lastMessage)) {
-    return "Please ask a legal question"
+    console.log("Blocked: Not legal question");
+    return "Please ask a legal question";
   }
+
+  console.log("Sending request to backend...");
+
   try {
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    const response = await fetch("http://localhost:5000/chat", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${OPENAI_API_KEY}`,
-        "HTTP-Referer": "http://localhost:5173",
-        "X-Title": "CityLawConnect"
       },
-      body: JSON.stringify({
-        model: "openai/gpt-4o-mini", // better model
-        temperature: 0,
-        max_tokens: 500, // 🔥 IMPORTANT FIX
-        messages: [
-          {
-            role: "system",
-            content: `
-You are an Indian legal assistant.
-Answer clearly and simply.
-If unsure, suggest consulting a lawyer.
-      `
-          },
-          ...messages,
-        ],
-      })
-    })
+      body: JSON.stringify({ messages }),
+    });
 
-    // 🔥 Handle API errors
+    console.log("Fetch executed");
+
     if (!response.ok) {
-      const errorText = await response.text()
-      console.error("API ERROR:", errorText)
-      return "API Error: " + errorText
+      const errorText = await response.text();
+      console.error("API ERROR:", errorText);
+      return "Server error: " + errorText;
     }
 
-    const data = await response.json()
-    console.log("FULL RESPONSE:", data)
+    const data = await response.json();
+    console.log("Response:", data);
 
-    // ✅ Safe response handling
-    if (data?.choices && data.choices.length > 0) {
-      return data.choices[0].message.content
-    }
-
-    return "No valid response from AI"
+    return data.reply || "No response from AI";
 
   } catch (error) {
-    console.error("FETCH ERROR:", error)
-    return "Error connecting to AI service"
+    console.error("FETCH ERROR:", error);
+    return "Error connecting to AI service";
   }
 }
+
+
+
+
+
