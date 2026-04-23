@@ -1,9 +1,10 @@
 import { useState, useRef, useEffect } from 'react'
-import { Send, Paperclip, AlertCircle } from 'lucide-react'
+import { Send, Paperclip, AlertCircle, Briefcase, DollarSign } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { chatWithAI } from "@/lib/openai"
 import toast from 'react-hot-toast'
 import { getLawyers } from "@/lib/lawyers";
+import RatingStars from "@/components/RatingStars";
 
 interface Message {
   id: string
@@ -15,20 +16,200 @@ interface Message {
 interface Lawyer {
   id: string;
   display_name?: string;
-  location?: string;
-  specializations?: string[];
+  city?: string | null;
+  state?: string | null;
+  specializations?: string[] | null;
+  years_experience?: number | null;
+  consultation_fee?: number | null;
+  avgRating?: number | null;
+  reviewsCount?: number | null;
+  successRate?: number | null;
 }
 
-function detectCategory(text: string): string {
-  const t = text.toLowerCase();
 
-  if (t.includes("divorce")) return "family";
-  if (t.includes("ipc") || t.includes("fraud")) return "criminal";
-  if (t.includes("property")) return "civil";
-  if (t.includes("company")) return "corporate";
+// ✅ Smart city detection
+function extractCitySmart(text: string, lawyers: Lawyer[]): string | null {
+  const lowerText = text.toLowerCase();
+
+  const citySet: Set<string> = new Set(
+    lawyers
+      .map(l => l.city?.toLowerCase().trim())
+      .filter((c): c is string => Boolean(c))
+  );
+
+  let bestMatch: string | null = null;
+  let bestScore = 0;
+
+  for (const city of citySet) {
+    if (lowerText.includes(city)) return city;
+
+    const words = lowerText.split(/\s+/);
+
+    for (const word of words) {
+      const score = similarity(word, city);
+      if (score > bestScore && score > 0.7) {
+        bestScore = score;
+        bestMatch = city;
+      }
+    }
+  }
+
+  return bestMatch;
+}
+
+function similarity(a: string, b: string): number {
+  const longer = a.length > b.length ? a : b;
+  const shorter = a.length > b.length ? b : a;
+
+  const longerLength = longer.length;
+  if (longerLength === 0) return 1.0;
+
+  return (longerLength - editDistance(longer, shorter)) / longerLength;
+}
+
+function editDistance(a: string, b: string): number {
+  const matrix = [];
+
+  for (let i = 0; i <= b.length; i++) matrix[i] = [i];
+  for (let j = 0; j <= a.length; j++) matrix[0][j] = j;
+
+  for (let i = 1; i <= b.length; i++) {
+    for (let j = 1; j <= a.length; j++) {
+      if (b[i - 1] === a[j - 1]) {
+        matrix[i][j] = matrix[i - 1][j - 1];
+      } else {
+        matrix[i][j] = Math.min(
+          matrix[i - 1][j - 1] + 1,
+          matrix[i][j - 1] + 1,
+          matrix[i - 1][j] + 1
+        );
+      }
+    }
+  }
+
+  return matrix[b.length][a.length];
+}
+
+
+async function getUserCityFromGPS(): Promise<string | null> {
+  return new Promise((resolve) => {
+    if (!navigator.geolocation) return resolve(null);
+
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const { latitude, longitude } = position.coords;
+
+        try {
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`
+          );
+          const data = await res.json();
+
+          const city =
+            data.address.city ||
+            data.address.town ||
+            data.address.village;
+
+          resolve(city?.toLowerCase() || null);
+        } catch {
+          resolve(null);
+        }
+      },
+      () => resolve(null)
+    );
+  });
+}
+
+
+function detectCategory(text: string): string {
+  const t = text
+    .toLowerCase()
+    .replace(/[^\w\s₹]/g, " ")   // remove punctuation
+    .replace(/\s+/g, " ")        // normalize spaces
+    .trim();
+
+  // helper
+  const has = (word: string) => new RegExp(`\\b${word}\\b`).test(t);
+
+  // ===== FAMILY =====
+  if (
+    has("divorce") ||
+    has("marriage") ||
+    has("wife") ||
+    has("husband") ||
+    t.includes("left me") ||
+    has("separation") ||
+    has("alimony") ||
+    has("maintenance") ||
+    has("custody")
+  ) return "family";
+
+  // ===== CRIMINAL =====
+  if (
+    has("fraud") ||
+    has("cheating") ||
+    has("theft") ||
+    has("crime") ||
+    has("police") ||
+    has("fir") ||
+    has("scam")
+  ) return "criminal";
+
+  // ===== PROPERTY =====
+  if (
+    has("land") ||
+    has("property") ||
+    has("plot") ||
+    t.includes("property dispute") ||
+    t.includes("land dispute")
+  ) return "property";
+
+  // ===== CIVIL (money / disputes) =====
+  if (
+    has("money") ||
+    has("loan") ||
+    has("borrow") ||
+    has("borrowed") ||
+    has("gave") ||
+    has("given") ||
+    has("taken") ||
+    has("payment") ||
+    has("amount") ||
+    has("return") ||
+    t.includes("not returning") ||
+    t.includes("did not return") ||
+    has("rupee") ||
+    has("lakh") ||
+    has("lakhs") ||
+    has("cash") ||
+    /\brs\b/.test(t) ||   // safe "Rs"
+    t.includes("₹")
+  ) return "civil";
 
   return "general";
 }
+
+// Check if the message is a greeting
+function isGreeting(text: string): boolean {
+  const t = text.toLowerCase().trim();
+  const greetings = ["hi", "hello", "hey", "good morning", "good afternoon", "good evening", "greetings", "howdy"];
+  return greetings.includes(t) || t.startsWith("hi ") || t.startsWith("hello ") || t.startsWith("hey ");
+}
+
+// Helper to filter lawyers by category
+function filterLawyersByCategory(lawyers: Lawyer[], category: string): Lawyer[] {
+  if (category === "general") return lawyers;
+
+  return lawyers.filter(lawyer => {
+    if (!Array.isArray(lawyer.specializations)) return false;
+
+    return lawyer.specializations.some(spec =>
+      spec.toLowerCase().includes(category.toLowerCase())
+    );
+  });
+}
+
+
 
 export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([
@@ -63,9 +244,8 @@ export default function ChatPage() {
     'Personal Injury',
   ]
 
-  const handleSend = async () => {
-    console.log("SEND BUTTON CLICKED");
 
+  const handleSend = async () => {
     if (!input.trim()) return;
 
     const userMessage: Message = {
@@ -78,24 +258,32 @@ export default function ChatPage() {
     setInput('');
     setLoading(true);
 
-    // ✅ Add user message first
+    // ✅ show user message
     setMessages(prev => [...prev, userMessage]);
 
     try {
+      const category = detectCategory(userMessage.content);
+
+      // ✅ Greeting
+      if (isGreeting(userMessage.content)) {
+        setMessages(prev => [
+          ...prev,
+          {
+            id: Date.now().toString(),
+            role: "assistant",
+            content: "Hello! 👋 How can I help you today?",
+            timestamp: new Date()
+          }
+        ]);
+        setRecommendedLawyers([]);
+        return;
+      }
+
+      // ✅ AI response (ONLY ONCE)
       const response = await chatWithAI([
         ...messages,
         userMessage
       ]);
-
-      // ✅ detect category
-      const category = detectCategory(userMessage.content);
-      // ✅ fetch lawyers
-      const lawyers = await getLawyers(category);
-      console.log("LAWYERS:", lawyers);
-      // ✅ save to state
-      setRecommendedLawyers(lawyers);
-
-      console.log("AI RESPONSE:", response);
 
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
@@ -104,8 +292,48 @@ export default function ChatPage() {
         timestamp: new Date(),
       };
 
-      // ✅ Add AI message
       setMessages(prev => [...prev, assistantMessage]);
+
+      // ❌ If not legal → stop ONLY lawyers
+      if (category === "general") {
+        setRecommendedLawyers([]);
+        return;
+      }
+
+      // ✅ Fetch lawyers
+      const lawyers = await getLawyers(category);
+
+      // 📍 detect city
+      let userCity = await getUserCityFromGPS();
+
+      // fallback → show all
+      if (!userCity) {
+        setRecommendedLawyers(lawyers);
+        return;
+      }
+
+      // ✅ filter by city (FIXED)
+      let filteredLawyers = lawyers.filter(lawyer =>
+        lawyer.city?.toLowerCase().includes(userCity!)
+      );
+
+      // fallback if no match
+      if (filteredLawyers.length === 0) {
+        setRecommendedLawyers(lawyers);
+
+        setMessages(prev => [
+          ...prev,
+          {
+            id: Date.now().toString(),
+            role: "assistant",
+            content: "No lawyers found in your exact city, showing nearby options.",
+            timestamp: new Date()
+          }
+        ]);
+        return;
+      }
+
+      setRecommendedLawyers(filteredLawyers);
 
     } catch (error) {
       console.error(error);
@@ -118,6 +346,13 @@ export default function ChatPage() {
   const handleQuickTopic = (topic: string) => {
     setInput(`I need help with ${topic}`)
   }
+
+  const getFee = (lawyer: Lawyer) => {
+    return lawyer.consultation_fee ?? 0;
+  };
+  const getExperience = (lawyer: Lawyer) => {
+    return lawyer.years_experience || 5;
+  };
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -185,26 +420,72 @@ export default function ChatPage() {
 
             {recommendedLawyers.length > 0 && (
               <div className="mt-4 p-4 bg-white border rounded-lg">
-                <h3 className="font-bold mb-2 text-primary">
+                <h3 className="font-bold mb-4 text-primary text-lg">
                   Recommended Lawyers
                 </h3>
 
                 {recommendedLawyers.map((lawyer) => (
                   <div
                     key={lawyer.id}
-                    className="border p-3 rounded mb-2 hover:shadow-md transition"
+                    className="border border-gray-200 p-4 rounded-lg mb-4 hover:shadow-md transition-all bg-white"
                   >
-                    <p className="font-semibold">
-                      {lawyer.display_name || "Unknown"}
-                    </p>
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                      <div className="flex-1">
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <p className="font-bold text-lg text-gray-900">
+                              {lawyer.display_name || lawyer.id}
+                            </p>
+                            <div className="mt-1">
+                              <RatingStars
+                                rating={lawyer.avgRating || 0}
+                                reviewCount={lawyer.reviewsCount || 0}
+                                size={16}
+                              />
+                            </div>
+                          </div>
+                        </div>
 
-                    <p className="text-sm text-gray-600">
-                      Specialization: {lawyer.specializations?.join(", ") || "N/A"}
-                    </p>
+                        <div className="mt-3 space-y-2">
+                          <p className="text-sm text-gray-700">
+                            <span className="font-medium">Specialization:</span> {lawyer.specializations?.join(", ") || "General Practice"}
+                          </p>
+                          <p className="text-sm text-gray-700">
+                            <span className="font-medium">Location:</span> {
+                              lawyer.city && lawyer.state
+                                ? `${lawyer.city}, ${lawyer.state}`
+                                : "Not specified"
+                            }
+                          </p>
 
-                    <p className="text-sm text-gray-600">
-                      Location: {lawyer.location || "N/A"}
-                    </p>
+                          <div className="flex flex-wrap gap-4 mt-3">
+                            <div className="flex items-center gap-1 text-sm text-gray-700">
+                              <Briefcase size={14} className="text-gray-500" />
+                              <span>{getExperience(lawyer)}+ years experience</span>
+                            </div>
+                            <div className="flex items-center gap-1 text-sm text-gray-700">
+                              <DollarSign size={14} className="text-gray-500" />
+                              <span>${getFee(lawyer)}/hr</span>
+                            </div>
+                            {lawyer.successRate && (
+                              <div className="flex items-center gap-1 text-sm text-gray-700">
+                                <span className="font-medium">Success Rate:</span>
+                                <span>{lawyer.successRate}%</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex-shrink-0">
+                        <Link
+                          to={`/book/${lawyer.id}`}
+                          className="btn-primary px-5 py-2.5 text-sm font-medium rounded-lg hover:bg-primary-dark transition-colors whitespace-nowrap flex items-center justify-center gap-2"
+                        >
+                          <span>Hire Now</span>
+                        </Link>
+                      </div>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -251,5 +532,3 @@ export default function ChatPage() {
     </div>
   )
 }
-
-

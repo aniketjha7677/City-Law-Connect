@@ -16,9 +16,9 @@ export default function Navigation() {
   return (
     <>
       {/* Dark Green Top Bar */}
-      <div className="bg-dark-green h-1 w-full"></div>
+      <div className="h-1 w-full bg-gradient-to-r from-primary via-primary-light to-accent"></div>
       
-      <nav className="bg-white shadow-md">
+      <nav className="border-b border-primary/10 bg-white/95 shadow-md backdrop-blur">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             {/* Logo */}
@@ -26,7 +26,7 @@ export default function Navigation() {
               <div className="w-10 h-10 bg-primary rounded flex items-center justify-center">
                 <span className="text-white font-bold text-lg">CL</span>
               </div>
-              <div className="text-2xl font-bold text-primary">CityLaw Connect</div>
+              <div className="text-2xl font-bold tracking-tight text-primary">CityLaw Connect</div>
             </Link>
 
           {/* Desktop Navigation */}
@@ -87,7 +87,7 @@ export default function Navigation() {
                 </Link>
                 <Link
                   to="/auth/register"
-                  className="bg-accent text-white px-6 py-2 rounded-lg hover:bg-accent-dark transition-colors font-bold"
+                  className="rounded-lg bg-accent px-6 py-2 font-bold text-white shadow-md shadow-accent/25 transition-colors hover:bg-accent-dark"
                 >
                   Get Started
                 </Link>

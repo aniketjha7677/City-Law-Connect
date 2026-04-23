@@ -11,8 +11,7 @@ const isLegal = (text: string): boolean => {
   // ✅ allow greetings
   if (["hi", "hello", "hey"].includes(lower)) return true;
 
-  // ✅ detect patterns like:
-  // article 370, section 420, ipc 302
+  // ✅ detect patterns like article 370, section 420
   const legalPatterns = [
     /article\s*\d+/i,
     /section\s*\d+/i,
@@ -25,13 +24,15 @@ const isLegal = (text: string): boolean => {
     return true;
   }
 
-  // ✅ keywords
+  // ✅ keywords (FIXED)
   const legalKeywords = [
     "law", "court", "police", "rights", "contract",
     "case", "crime", "judge", "tenant", "property",
-    "divorce", "arrest", "agreement", "complaint",
-    "fir", "cybercrime", "ipc", "section",
-    "act", "constitution", "article"
+    "divorce", "wife", "husband", "marriage",
+    "separation", "left me", "alimony", "maintenance",
+    "fraud", "cheating", "fir",
+    "agreement", "complaint",
+    "ipc", "section", "act", "constitution", "article"
   ];
 
   return legalKeywords.some(word => lower.includes(word));
@@ -51,10 +52,6 @@ export async function chatWithAI(messages: ChatMessage[]): Promise<string> {
     return "Hello! I can help you with legal questions.";
   }
 
-  if (!isLegal(lastMessage)) {
-    console.log("Blocked: Not legal question");
-    return "Please ask a legal question";
-  }
 
   console.log("Sending request to backend...");
 

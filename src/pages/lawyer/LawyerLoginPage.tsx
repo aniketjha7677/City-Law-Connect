@@ -4,6 +4,7 @@ import toast from 'react-hot-toast'
 import { Mail, Lock } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import ScalesIcon from '../../components/ScalesIcon'
+import loginIllustration from '../../assets/login-illustration.png'
 
 export default function LawyerLoginPage() {
   const [formData, setFormData] = useState({ email: '', password: '' })
@@ -32,21 +33,24 @@ export default function LawyerLoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full">
-        <div className="text-center mb-8">
-          <div className="flex items-center justify-center space-x-3 mb-6">
-            <div className="w-12 h-12 bg-primary rounded-lg flex items-center justify-center">
-              <ScalesIcon className="w-7 h-7 text-white" />
-            </div>
-            <div className="text-2xl font-bold text-primary">CityLaw Connect</div>
-          </div>
-          <h2 className="text-2xl font-bold text-primary">Lawyer Sign In</h2>
-          <p className="text-sm text-secondary mt-1">Access your professional dashboard</p>
-        </div>
+    <div className="min-h-screen bg-gradient-to-br from-emerald-100 via-teal-50 to-amber-100 px-4 py-6 sm:px-6 lg:px-8 lg:py-10">
+      <div className="mx-auto flex min-h-[calc(100vh-3rem)] max-w-6xl overflow-hidden rounded-3xl border border-white/70 bg-white/90 shadow-[0_24px_80px_rgba(13,148,136,0.22)] backdrop-blur-sm">
+        <div className="relative w-full px-6 py-8 sm:px-10 sm:py-10 lg:w-1/2 lg:px-12 lg:py-12">
+          <div className="absolute left-10 top-12 h-24 w-24 rounded-full bg-teal-500/15 blur-2xl" />
+          <div className="absolute bottom-12 right-10 h-28 w-28 rounded-full bg-amber-500/20 blur-2xl" />
 
-        <div className="bg-white rounded-xl shadow-lg p-8">
-          <form className="space-y-5" onSubmit={handleSubmit}>
+          <div className="mb-8 flex items-center space-x-3">
+            <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-primary">
+              <ScalesIcon className="h-7 w-7 text-white" />
+            </div>
+            <div className="text-2xl font-bold text-primary">CityLawConnect</div>
+          </div>
+          <div className="relative z-10 mb-6">
+            <h2 className="text-2xl font-bold tracking-tight text-primary">Lawyer Sign In</h2>
+            <p className="mt-1 text-sm text-secondary">Access your professional dashboard</p>
+          </div>
+
+          <form className="relative z-10 space-y-5" onSubmit={handleSubmit}>
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
                 Work Email
@@ -60,7 +64,7 @@ export default function LawyerLoginPage() {
                   type="email"
                   required
                   placeholder="name@lawfirm.com"
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                  className="w-full rounded-xl border border-slate-200 bg-white/80 py-3 pl-10 pr-4 shadow-sm transition-all duration-200 placeholder:text-slate-400 focus:border-teal-500/60 focus:outline-none focus:ring-4 focus:ring-teal-400/20"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 />
@@ -80,7 +84,7 @@ export default function LawyerLoginPage() {
                   type="password"
                   required
                   placeholder="Enter your password"
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                  className="w-full rounded-xl border border-slate-200 bg-white/80 py-3 pl-10 pr-4 shadow-sm transition-all duration-200 placeholder:text-slate-400 focus:border-teal-500/60 focus:outline-none focus:ring-4 focus:ring-teal-400/20"
                   value={formData.password}
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                 />
@@ -90,12 +94,12 @@ export default function LawyerLoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-accent text-white px-6 py-3 rounded-lg font-bold hover:bg-accent-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full rounded-xl bg-accent px-6 py-3 font-bold text-white shadow-lg shadow-accent/30 transition-all duration-200 hover:-translate-y-0.5 hover:bg-accent-dark hover:shadow-xl hover:shadow-accent/35 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {loading ? 'Signing In...' : 'Sign In'}
             </button>
 
-            <div className="text-center">
+            <div className="pt-1 text-center">
               <p className="text-sm text-secondary">
                 New here?{' '}
                 <Link to="/lawyer/register" className="text-accent hover:text-accent-dark font-medium">
@@ -110,6 +114,14 @@ export default function LawyerLoginPage() {
               </p>
             </div>
           </form>
+        </div>
+
+        <div className="hidden w-1/2 overflow-hidden bg-gradient-to-br from-[#5e8f9a] via-[#7aa7b1] to-[#b8a576] lg:flex">
+          <img
+            src={loginIllustration}
+            alt="Login illustration"
+            className="h-full w-full object-cover object-[90%_center]"
+          />
         </div>
       </div>
     </div>

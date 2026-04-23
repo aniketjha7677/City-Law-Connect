@@ -1,9 +1,9 @@
 import { supabase } from "./supabase";
 
-export async function getLawyers(category: string) {
+export async function getLawyers(category: string | null = null) {
   let query = supabase.from("lawyers").select("*");
 
-  if (category !== "general") {
+  if (category && category !== "general") {
     query = query.contains("specializations", [category]);
   }
 
@@ -14,5 +14,5 @@ export async function getLawyers(category: string) {
     return [];
   }
 
-  return data;
+  return data || [];
 }

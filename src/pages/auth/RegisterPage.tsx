@@ -108,7 +108,7 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-100 via-sky-50 to-violet-200 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full">
         {/* Logo and Brand */}
         <div className="text-center mb-8">
@@ -116,12 +116,12 @@ export default function RegisterPage() {
             <div className="w-12 h-12 bg-primary rounded-lg flex items-center justify-center">
               <ScalesIcon className="w-7 h-7 text-white" />
             </div>
-            <div className="text-2xl font-bold text-primary">CityLaw Connect</div>
+            <div className="text-2xl font-bold text-primary">CityLawConnect</div>
           </div>
         </div>
 
         {/* Form Card */}
-        <div className="bg-white rounded-xl shadow-lg p-8">
+        <div className="rounded-2xl border border-white/70 bg-white/90 p-8 shadow-[0_24px_80px_rgba(59,130,246,0.25)] backdrop-blur-sm">
           <div className="mb-6">
             <h2 className="text-3xl font-bold text-primary text-center mb-2">
               Create Your Account
@@ -132,7 +132,7 @@ export default function RegisterPage() {
           </div>
 
           <form autoComplete="off" className="space-y-5" onSubmit={handleSubmit}>
-            <div className="p-4 rounded-lg bg-gray-50 border border-gray-200">
+            <div className="rounded-xl border border-blue-100 bg-blue-50/65 p-4">
               <p className="text-sm text-secondary">
                 Creating a lawyer account?{' '}
                 <Link to="/lawyer/register" className="text-accent hover:text-accent-dark font-medium">
@@ -155,7 +155,7 @@ export default function RegisterPage() {
                   type="text"
                   required
                   placeholder="John Doe"
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                  className="w-full rounded-xl border border-slate-200 bg-white/85 py-3 pl-10 pr-4 shadow-sm transition-all duration-200 placeholder:text-slate-400 focus:border-blue-400/60 focus:outline-none focus:ring-4 focus:ring-blue-400/20"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 />
@@ -177,7 +177,7 @@ export default function RegisterPage() {
                   type="email"
                   required
                   placeholder="john@example.com"
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                  className="w-full rounded-xl border border-slate-200 bg-white/85 py-3 pl-10 pr-4 shadow-sm transition-all duration-200 placeholder:text-slate-400 focus:border-blue-400/60 focus:outline-none focus:ring-4 focus:ring-blue-400/20"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 />
@@ -200,7 +200,7 @@ export default function RegisterPage() {
                   autoComplete="new-password"
                   required
                   placeholder="Enter your state"
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                  className="w-full rounded-xl border border-slate-200 bg-white/85 py-3 pl-10 pr-4 shadow-sm transition-all duration-200 placeholder:text-slate-400 focus:border-blue-400/60 focus:outline-none focus:ring-4 focus:ring-blue-400/20"
                   value={formData.state}
                   onChange={(e) => handleLocationChange(e.target.value)}
                 />
@@ -247,7 +247,7 @@ export default function RegisterPage() {
                   type="text"
                   required
                   placeholder="Select your city"
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg"
+                  className="w-full rounded-xl border border-slate-200 bg-white/85 py-3 pl-10 pr-4 shadow-sm transition-all duration-200 focus:border-blue-400/60 focus:outline-none focus:ring-4 focus:ring-blue-400/20"
                   value={formData.city}
                   onChange={(e) => {
                     const value = e.target.value
@@ -305,7 +305,7 @@ export default function RegisterPage() {
                   type={showPassword ? "text" : "password"}
                   placeholder="Password"
                   required
-                  className="w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                  className="w-full rounded-xl border border-slate-200 bg-white/85 py-3 pl-10 pr-10 shadow-sm transition-all duration-200 focus:border-blue-400/60 focus:outline-none focus:ring-4 focus:ring-blue-400/20"
                   value={formData.password}
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                 />
@@ -337,7 +337,7 @@ export default function RegisterPage() {
                 type={showConfirmPassword ? "text" : "password"}
                 required
                 placeholder="Confirm Password"
-                className="w-full pl-12 pr-10 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full rounded-xl border border-slate-200 bg-white/85 py-3 pl-12 pr-10 shadow-sm transition-all duration-200 focus:border-blue-400/60 focus:outline-none focus:ring-4 focus:ring-blue-400/20"
                 value={formData.confirmPassword}
                 onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
               />
@@ -359,7 +359,7 @@ export default function RegisterPage() {
                 name="terms"
                 type="checkbox"
                 required
-                className="mt-1 h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
+                className="mt-1 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
               />
               <label htmlFor="terms" className="ml-2 block text-sm text-gray-700">
                 I agree to the{' '}
@@ -378,7 +378,7 @@ export default function RegisterPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-accent text-white px-6 py-3 rounded-lg font-bold hover:bg-accent-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full rounded-xl bg-accent px-6 py-3 font-bold text-white shadow-lg shadow-accent/30 transition-all duration-200 hover:-translate-y-0.5 hover:bg-accent-dark hover:shadow-xl hover:shadow-accent/35 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {loading ? 'Creating Account...' : 'Create Account'}
               </button>
